@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>填写表单 · X-From</title>
+  <link rel="stylesheet" href="./assets/style.css"/>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="brand"><span class="brand-logo">X</span> X-From 表单</div>
+      <h1 id="heroTitle">正在加载表单…</h1>
+      <p id="heroDesc">请稍候</p>
+      <div class="meta">
+        <span id="heroFormNo">-</span>
+        <span id="heroVisits"></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card" id="formCard">
+      <div class="skeleton">
+        <div class="sk" style="height:20px;width:45%"></div>
+        <div class="sk"></div>
+        <div class="sk" style="height:96px"></div>
+        <div class="sk"></div>
+      </div>
+    </div>
+
+    <!-- 提交成功 -->
+    <div class="card hidden" id="successCard">
+      <div class="state">
+        <div class="success-icon">✓</div>
+        <h3>提交成功</h3>
+        <p>感谢你的填写，数据已同步到运营端。</p>
+        <button class="btn-ghost" id="btnAgain">再填一份</button>
+      </div>
+    </div>
+
+    <!-- 异常 -->
+    <div class="card hidden" id="errorCard">
+      <div class="state">
+        <div class="emoji">🔗</div>
+        <h3 id="errorTitle">表单不可用</h3>
+        <p id="errorMsg">分享链接可能已失效</p>
+        <button class="btn-ghost" id="btnRetry">重新加载</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Powered by X-From · 数据实时回传运营端</div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="./assets/app.js"></script>
+</body>
+</html>

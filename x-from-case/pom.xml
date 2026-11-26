@@ -12,6 +12,10 @@
     <dependencies>
         <dependency>
             <groupId>cn.polar</groupId>
+            <artifactId>x-from-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.polar</groupId>
             <artifactId>x-from-domain</artifactId>
         </dependency>
     </dependencies>

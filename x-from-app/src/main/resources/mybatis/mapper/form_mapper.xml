@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.polar.x.infrastructure.dao.IFormDao">
+
+    <resultMap id="FormMap" type="cn.polar.x.infrastructure.dao.po.FormPO">
+        <id column="id" property="id"/>
+        <result column="form_no" property="formNo"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="fields_json" property="fieldsJson"/>
+        <result column="status" property="status"/>
+        <result column="submit_count" property="submitCount"/>
+        <result column="creator" property="creator"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, form_no, title, description, fields_json, status, submit_count, creator, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="cn.polar.x.infrastructure.dao.po.FormPO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO form (form_no, title, description, fields_json, status, submit_count, creator, create_time, update_time)
+        VALUES (#{formNo}, #{title}, #{description}, #{fieldsJson}, #{status}, #{submitCount}, #{creator}, NOW(), NOW())
+    </insert>
+
+    <select id="queryByFormNo" resultMap="FormMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM form
+        WHERE form_no = #{formNo}
+        LIMIT 1
+    </select>
+
+    <select id="queryById" resultMap="FormMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM form
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="queryList" resultMap="FormMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM form
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%') OR form_no = #{keyword})
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countList" resultType="int">
+        SELECT COUNT(1)
+        FROM form
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%') OR form_no = #{keyword})
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <update id="updateStatus">
+        UPDATE form
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="increaseSubmitCount">
+        UPDATE form
+        SET submit_count = submit_count + 1, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

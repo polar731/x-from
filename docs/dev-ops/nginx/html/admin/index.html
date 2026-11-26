@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>X-From 表单运营台</title>
+  <link rel="stylesheet" href="./assets/style.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">X</div>
+      <div>
+        <strong>X-From</strong>
+        <small>表单运营台</small>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" id="navForms"><span class="dot"></span>表单管理</a>
+      <a class="nav-item" id="navData">填写数据</a>
+      <a class="nav-item" id="navDocs">接口说明</a>
+    </nav>
+    <div class="sidebar-footer">
+      服务端 <b>x-from-app : 8091</b><br/>
+      网关 <b>nginx : 8088</b><br/>
+      数据 <b>MySQL / Redis</b>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">表单管理</h1>
+        <p id="pageDesc">创建表单 → 分享链接 → 回收数据，全链路闭环</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="btnRefresh">刷新</button>
+        <button class="btn btn-primary" id="btnCreate">＋ 新建表单</button>
+      </div>
+    </header>
+
+    <section class="content">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <span class="label">表单总数</span>
+          <span class="value" id="statTotal">-</span>
+          <span class="spark"><i style="width:100%"></i></span>
+        </div>
+        <div class="stat-card">
+          <span class="label">已发布</span>
+          <span class="value" id="statPublished">-</span>
+          <span class="spark"><i style="width:70%;background:var(--green)"></i></span>
+        </div>
+        <div class="stat-card">
+          <span class="label">草稿 / 已关闭</span>
+          <span class="value" id="statDraft">-</span>
+          <span class="spark"><i style="width:40%;background:var(--amber)"></i></span>
+        </div>
+        <div class="stat-card">
+          <span class="label">累计回收数据</span>
+          <span class="value" id="statSubmissions">-</span>
+          <span class="spark"><i style="width:55%;background:#12b76a"></i></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">表单列表 <span class="badge-count" id="listTotal">0</span></div>
+          <div class="filters">
+            <input class="input input-search" id="keyword" placeholder="搜索标题 / 表单编号"/>
+            <select class="select" id="statusFilter">
+              <option value="">全部状态</option>
+              <option value="0">草稿</option>
+              <option value="1">已发布</option>
+              <option value="2">已关闭</option>
+            </select>
+            <button class="btn btn-ghost" id="btnSearch">查询</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+            <tr>
+              <th style="width:26%">表单</th>
+              <th style="width:14%">表单编号</th>
+              <th style="width:10%">状态</th>
+              <th style="width:8%">字段</th>
+              <th style="width:10%">回收数</th>
+              <th style="width:14%">创建时间</th>
+              <th style="width:18%">操作</th>
+            </tr>
+            </thead>
+            <tbody id="formTableBody">
+            <tr class="skeleton-row"><td colspan="7"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <span id="pagerInfo">-</span>
+          <div class="pages" id="pagerPages"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 新建表单 -->
+<div class="modal" id="createModal">
+  <div class="modal-mask" data-close="createModal"></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3>新建表单</h3>
+        <p>配置字段后可保存草稿，或直接发布并拿到分享链接</p>
+      </div>
+      <button class="modal-close" data-close="createModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>表单标题 <span class="hint">必填</span></label>
+        <input class="input" id="formTitle" placeholder="例如：2025 春季用户调研"/>
+      </div>
+      <div class="form-row">
+        <label>表单描述 <span class="hint">选填，展示在用户端顶部</span></label>
+        <textarea class="textarea" id="formDesc" rows="2" placeholder="用一句话说明填写目的"></textarea>
+      </div>
+      <div class="form-row">
+        <label>字段配置 <span class="hint">至少一个字段</span></label>
+        <div class="editor" id="fieldEditor"></div>
+        <button class="btn btn-ghost" id="btnAddField" style="align-self:flex-start">＋ 添加字段</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="createModal">取消</button>
+      <button class="btn btn-ghost" id="btnSaveDraft">保存草稿</button>
+      <button class="btn btn-primary" id="btnCreatePublish">创建并发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- 填写数据 -->
+<div class="modal" id="dataModal">
+  <div class="modal-mask" data-close="dataModal"></div>
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <div>
+        <h3 id="dataModalTitle">填写数据</h3>
+        <p id="dataModalSub">-</p>
+      </div>
+      <button class="modal-close" data-close="dataModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="data-table-wrap">
+        <table class="table">
+          <thead id="dataTableHead"></thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+      <div class="pager" style="border-top:none;padding:0">
+        <span id="dataPagerInfo">-</span>
+        <div class="pages" id="dataPagerPages"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="dataModal">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 接口说明 -->
+<div class="modal" id="docsModal">
+  <div class="modal-mask" data-close="docsModal"></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3>服务端接口</h3>
+        <p>页面已对接全部接口，统一返回 { code, info, data }</p>
+      </div>
+      <button class="modal-close" data-close="docsModal">✕</button>
+    </div>
+    <div class="modal-body" style="font-size:13px;line-height:2">
+      <div><span class="code-chip">POST</span> /api/admin/form/create　创建表单（publish=true 直接发布）</div>
+      <div><span class="code-chip">GET</span> /api/admin/form/list　表单列表（keyword/status/page/pageSize）</div>
+      <div><span class="code-chip">GET</span> /api/admin/form/stats　数据概览</div>
+      <div><span class="code-chip">GET</span> /api/admin/form/detail?formNo=　表单详情</div>
+      <div><span class="code-chip">POST</span> /api/admin/form/publish?formNo=　发布表单</div>
+      <div><span class="code-chip">POST</span> /api/admin/form/close?formNo=　关闭表单</div>
+      <div><span class="code-chip">GET</span> /api/admin/form/submissions?formNo=　填写数据分页</div>
+      <div><span class="code-chip">GET</span> /api/form/{formNo}　用户端获取表单</div>
+      <div><span class="code-chip">POST</span> /api/form/submit　用户端提交数据</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="docsModal">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="./assets/app.js"></script>
+</body>
+</html>

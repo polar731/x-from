@@ -156,11 +156,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.0</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <!-- Spring MVC 需要反射获取参数名，否则 @RequestParam/@PathVariable 报参数名不存在 -->
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
             <plugin>
