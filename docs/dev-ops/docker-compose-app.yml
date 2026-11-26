@@ -22,7 +22,9 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
     volumes:
       - ./app/x-from-app.jar:/app/x-from-app.jar
-      - ./log:/app/log
+      # logback 配置的日志文件为 ./data/log/log_info.log（相对工作目录 /app），
+      # 因此必须映射 /app/data/log，映射 /app/log 是拿不到日志的。
+      - ./data/log:/app/data/log
     command:
       - java
       - -Xms256m
