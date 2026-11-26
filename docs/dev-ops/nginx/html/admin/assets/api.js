@@ -15,6 +15,28 @@
   const enc = encodeURIComponent;
 
   /**
+   * 把「响应不是可解析 JSON」翻译成可定位的提示
+   * 空响应 / 网关 5xx / HTML 错误页 是最常见的三种，分别给出排查方向
+   */
+  function describeBadResponse(resp, rawText) {
+    const status = resp.status || 0;
+    const contentType = (resp.headers && resp.headers.get('content-type')) || '';
+    if (status === 502 || status === 503 || status === 504) {
+      return '网关错误（HTTP ' + status + '）：nginx 未连上 x-from-app(8091)，'
+        + '或浏览器/系统代理拦截了该地址（可把服务器 IP 加入代理绕过列表）';
+    }
+    if (status === 404) {
+      return '接口地址不存在（HTTP 404）：请从 nginx 的 /admin/ 访问，/api/ 已反代到 8091';
+    }
+    const snippet = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (!snippet) {
+      return '服务端返回空响应（HTTP ' + status + '）：请检查 nginx 到 x-from-app 的转发以及代理设置';
+    }
+    return '服务端返回非 JSON 内容（HTTP ' + status
+      + (contentType ? '，' + contentType : '') + '）：' + snippet;
+  }
+
+  /**
    * 通用请求
    * @param {string} url    接口地址
    * @param {object} [opts] { method, body, query }
@@ -55,10 +77,22 @@
     }
 
     let payload;
+    let rawText = '';
     try {
-      payload = await resp.json();
+      rawText = await resp.text();
     } catch (e) {
-      throw new Error('服务端响应异常（HTTP ' + resp.status + '）');
+      throw new Error('读取服务端响应失败（HTTP ' + resp.status + '），请稍后重试');
+    }
+
+    /* 空响应 / HTML 错误页（如代理 502）都会走到这里，交由 describeBadResponse 给出可定位提示 */
+    if (!rawText) {
+      throw new Error(describeBadResponse(resp, ''));
+    }
+
+    try {
+      payload = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error(describeBadResponse(resp, rawText));
     }
 
     if (!payload || payload.code !== SUCCESS_CODE) {

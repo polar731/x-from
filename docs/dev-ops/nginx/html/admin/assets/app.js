@@ -80,7 +80,7 @@
     $('currentUser').textContent = loggedIn ? session.username : '-';
     $('btnLogout').style.display = loggedIn ? '' : 'none';
     if (!loggedIn) {
-      $('loginPass').value = '';
+      /* 只清错误提示；密码保留页面预填值，避免初始化时把演示密码清空 */
       $('loginError').textContent = '';
     }
   }
@@ -113,6 +113,8 @@
       if (!window.confirm('确认退出当前登录？')) return;
       AuthApi.logout();
       applySession(null);
+      /* 主动退出时清空密码，重新登录需手动输入 */
+      $('loginPass').value = '';
       $('loginUser').focus();
     });
   }
