@@ -6,7 +6,7 @@
   <title>X-From 表单运营台</title>
   <link rel="stylesheet" href="./assets/style.css"/>
 </head>
-<body>
+<body class="logged-out">
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
@@ -35,8 +35,13 @@
         <p id="pageDesc">创建表单 → 分享链接 → 回收数据，全链路闭环</p>
       </div>
       <div class="topbar-actions">
+        <div class="user-chip">
+          <span class="user-avatar">A</span>
+          <span id="currentUser">-</span>
+        </div>
         <button class="btn btn-ghost" id="btnRefresh">刷新</button>
         <button class="btn btn-primary" id="btnCreate">＋ 新建表单</button>
+        <button class="btn btn-danger-ghost" id="btnLogout">退出</button>
       </div>
     </header>
 
@@ -76,6 +81,7 @@
               <option value="2">已关闭</option>
             </select>
             <button class="btn btn-ghost" id="btnSearch">查询</button>
+            <button class="btn btn-ghost" id="btnReset">重置</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -103,6 +109,36 @@
       </div>
     </section>
   </main>
+</div>
+
+<!-- 模拟登录 -->
+<div class="modal" id="loginModal">
+  <div class="modal-mask"></div>
+  <div class="modal-card login-card">
+    <div class="modal-head">
+      <div>
+        <h3>登录 X-From 表单运营台</h3>
+        <p>演示环境 · 登录由前端模拟校验（服务端未提供鉴权接口）</p>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>账号</label>
+        <input class="input" id="loginUser" value="admin" autocomplete="username" placeholder="演示账号 admin"/>
+      </div>
+      <div class="form-row">
+        <label>密码</label>
+        <input class="input" id="loginPass" type="password" value="123456" autocomplete="current-password" placeholder="演示密码 123456"/>
+      </div>
+      <div class="form-row">
+        <span class="hint" id="loginError" style="color:var(--red)"></span>
+        <span class="hint">默认账号 admin / 123456，登录状态保存在浏览器本地</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="btnLogin" style="width:100%">登录</button>
+    </div>
+  </div>
 </div>
 
 <!-- 新建表单 -->
@@ -168,6 +204,41 @@
   </div>
 </div>
 
+<!-- 填写数据 · 表单选择 -->
+<div class="modal" id="dataPickerModal">
+  <div class="modal-mask" data-close="dataPickerModal"></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3>填写数据</h3>
+        <p>选择要查看回收数据的表单（草稿未发布不可查看）</p>
+      </div>
+      <button class="modal-close" data-close="dataPickerModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+          <tr>
+            <th style="width:34%">表单</th>
+            <th style="width:18%">表单编号</th>
+            <th style="width:14%">状态</th>
+            <th style="width:12%">回收数</th>
+            <th style="width:22%">操作</th>
+          </tr>
+          </thead>
+          <tbody id="pickerTableBody">
+          <tr class="skeleton-row"><td colspan="5"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="dataPickerModal">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 接口说明 -->
 <div class="modal" id="docsModal">
   <div class="modal-mask" data-close="docsModal"></div>
@@ -175,7 +246,7 @@
     <div class="modal-head">
       <div>
         <h3>服务端接口</h3>
-        <p>页面已对接全部接口，统一返回 { code, info, data }</p>
+        <p>接口对接已拆分到 assets/api.js，统一返回 { code, info, data }</p>
       </div>
       <button class="modal-close" data-close="docsModal">✕</button>
     </div>
@@ -197,6 +268,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<script src="./assets/api.js"></script>
 <script src="./assets/app.js"></script>
 </body>
 </html>

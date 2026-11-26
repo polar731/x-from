@@ -2,6 +2,7 @@
 (function () {
   'use strict';
 
+  const FormFillApi = window.XFromUserApi.FormFillApi;
   const state = { formNo: '', form: null, values: {}, submitting: false };
   const $ = (id) => document.getElementById(id);
 
@@ -14,26 +15,6 @@
     const last = parts[parts.length - 1] || '';
     if (last && last.indexOf('.') < 0) return last.trim();
     return '';
-  }
-
-  async function request(url, options) {
-    const config = Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {});
-    let resp;
-    try {
-      resp = await fetch(url, config);
-    } catch (e) {
-      throw new Error('网络异常，请检查网络后重试');
-    }
-    let body;
-    try {
-      body = await resp.json();
-    } catch (e) {
-      throw new Error('服务端响应异常（HTTP ' + resp.status + '）');
-    }
-    if (!body || body.code !== '0000') {
-      throw new Error((body && body.info) || '请求失败');
-    }
-    return body.data;
   }
 
   let toastTimer = null;
@@ -195,10 +176,7 @@
     btn.disabled = true;
     btn.textContent = '提交中…';
     try {
-      await request('/api/form/submit', {
-        method: 'POST',
-        body: JSON.stringify({ formNo: state.formNo, data: result.data })
-      });
+      await FormFillApi.submit(state.formNo, result.data);
       $('formCard').classList.add('hidden');
       $('errorCard').classList.add('hidden');
       $('successCard').classList.remove('hidden');
@@ -221,7 +199,7 @@
       return;
     }
     try {
-      const form = await request('/api/form/' + encodeURIComponent(state.formNo));
+      const form = await FormFillApi.getForm(state.formNo);
       renderForm(form);
     } catch (e) {
       showError('表单不可用', e.message);

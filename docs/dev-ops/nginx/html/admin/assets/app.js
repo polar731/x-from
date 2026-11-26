@@ -1,8 +1,13 @@
-/* X-From 运营端 —— 对接 /api/admin/form 与 /api/form */
+/* X-From 运营端 —— 页面逻辑
+ * 接口调用统一走 assets/api.js（window.XFromApi），本文件只负责渲染与交互。
+ */
 (function () {
   'use strict';
 
-  const ADMIN_API = '/api/admin/form';
+  const XFromApi = window.XFromApi;
+  const FormApi = XFromApi.FormApi;
+  const AuthApi = XFromApi.AuthApi;
+
   const state = {
     page: 1,
     pageSize: 10,
@@ -23,26 +28,6 @@
   const $ = (id) => document.getElementById(id);
 
   /* ---------------- 基础工具 ---------------- */
-  async function request(url, options) {
-    const config = Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {});
-    let resp;
-    try {
-      resp = await fetch(url, config);
-    } catch (e) {
-      throw new Error('网络异常，无法连接服务端');
-    }
-    let body;
-    try {
-      body = await resp.json();
-    } catch (e) {
-      throw new Error('服务端响应异常（HTTP ' + resp.status + '）');
-    }
-    if (!body || body.code !== '0000') {
-      throw new Error((body && body.info) || ('请求失败（HTTP ' + resp.status + '）'));
-    }
-    return body.data;
-  }
-
   let toastTimer = null;
   function toast(message, type) {
     const el = $('toast');
@@ -87,10 +72,56 @@
     });
   }
 
+  /* ---------------- 模拟登录 ---------------- */
+  function applySession(session) {
+    const loggedIn = !!session;
+    document.body.classList.toggle('logged-out', !loggedIn);
+    $('loginModal').classList.toggle('open', !loggedIn);
+    $('currentUser').textContent = loggedIn ? session.username : '-';
+    $('btnLogout').style.display = loggedIn ? '' : 'none';
+    if (!loggedIn) {
+      $('loginPass').value = '';
+      $('loginError').textContent = '';
+    }
+  }
+
+  async function doLogin() {
+    const btn = $('btnLogin');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '登录中…';
+    $('loginError').textContent = '';
+    try {
+      const session = await AuthApi.login($('loginUser').value, $('loginPass').value);
+      applySession(session);
+      toast('欢迎回来，' + session.username, 'success');
+      refreshAll();
+    } catch (e) {
+      $('loginError').textContent = e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '登录';
+    }
+  }
+
+  function bindLogin() {
+    $('btnLogin').addEventListener('click', doLogin);
+    $('loginUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+    $('btnLogout').addEventListener('click', () => {
+      if (!window.confirm('确认退出当前登录？')) return;
+      AuthApi.logout();
+      applySession(null);
+      $('loginUser').focus();
+    });
+  }
+
   /* ---------------- 概览 ---------------- */
   async function loadStats() {
+    if (!AuthApi.current()) return;
     try {
-      const data = await request(ADMIN_API + '/stats');
+      const data = await FormApi.stats();
       $('statTotal').textContent = data.formTotal;
       $('statPublished').textContent = data.publishedCount;
       $('statDraft').innerHTML = data.draftCount + ' <small>/ ' + data.closedCount + ' 关闭</small>';
@@ -116,17 +147,17 @@
     body.innerHTML = state.rows.map((row) => {
       const ops = [];
       if (row.status === 1 && row.shareUrl) {
-        ops.push('<button class="link-btn" data-act="copy" data-no="' + row.formNo + '">复制链接</button>');
-        ops.push('<button class="link-btn" data-act="open" data-no="' + row.formNo + '">打开填写页</button>');
+        ops.push('<button class="link-btn" data-act="copy" data-no="' + escapeHtml(row.formNo) + '">复制链接</button>');
+        ops.push('<button class="link-btn" data-act="open" data-no="' + escapeHtml(row.formNo) + '">打开填写页</button>');
       }
       if (row.status === 1 || row.status === 2) {
-        ops.push('<button class="link-btn" data-act="data" data-no="' + row.formNo + '">查看数据</button>');
+        ops.push('<button class="link-btn" data-act="data" data-no="' + escapeHtml(row.formNo) + '">查看数据</button>');
       }
       if (row.status === 0) {
-        ops.push('<button class="link-btn" data-act="publish" data-no="' + row.formNo + '">发布</button>');
+        ops.push('<button class="link-btn" data-act="publish" data-no="' + escapeHtml(row.formNo) + '">发布</button>');
       }
       if (row.status !== 2) {
-        ops.push('<button class="link-btn muted" data-act="close" data-no="' + row.formNo + '">关闭</button>');
+        ops.push('<button class="link-btn muted" data-act="close" data-no="' + escapeHtml(row.formNo) + '">关闭</button>');
       }
       return '<tr>' +
         '<td><div class="cell-title">' + escapeHtml(row.title) + '</div>' +
@@ -157,14 +188,15 @@
   }
 
   async function loadList() {
+    if (!AuthApi.current()) return;
     skeleton();
     try {
-      const query = new URLSearchParams();
-      if (state.keyword) query.set('keyword', state.keyword);
-      if (state.status !== '') query.set('status', state.status);
-      query.set('page', state.page);
-      query.set('pageSize', state.pageSize);
-      const data = await request(ADMIN_API + '/list?' + query.toString());
+      const data = await FormApi.list({
+        keyword: state.keyword,
+        status: state.status,
+        page: state.page,
+        pageSize: state.pageSize
+      });
       state.rows = data.list || [];
       state.total = data.total || 0;
       renderRows();
@@ -177,7 +209,7 @@
 
   async function publishForm(formNo) {
     try {
-      const data = await request(ADMIN_API + '/publish?formNo=' + encodeURIComponent(formNo), { method: 'POST' });
+      const data = await FormApi.publish(formNo);
       toast('已发布，分享链接：' + (data.shareUrl || '-'), 'success');
       refreshAll();
     } catch (e) {
@@ -188,7 +220,7 @@
   async function closeForm(formNo) {
     if (!window.confirm('关闭后用户将无法继续填写，确认关闭表单 ' + formNo + ' ？')) return;
     try {
-      await request(ADMIN_API + '/close?formNo=' + encodeURIComponent(formNo), { method: 'POST' });
+      await FormApi.close(formNo);
       toast('表单已关闭', 'success');
       refreshAll();
     } catch (e) {
@@ -306,9 +338,12 @@
     const buttons = [$('btnSaveDraft'), $('btnCreatePublish')];
     buttons.forEach((b) => { b.disabled = true; });
     try {
-      const data = await request(ADMIN_API + '/create', {
-        method: 'POST',
-        body: JSON.stringify({ title: title, description: $('formDesc').value.trim(), fields: fields, publish: publish, creator: '运营端' })
+      const data = await FormApi.create({
+        title: title,
+        description: $('formDesc').value.trim(),
+        fields: fields,
+        publish: publish,
+        creator: (AuthApi.current() || {}).username || '运营端'
       });
       $('createModal').classList.remove('open');
       if (publish && data.shareUrl) {
@@ -325,7 +360,33 @@
     }
   }
 
-  /* ---------------- 填写数据 ---------------- */
+  /* ---------------- 填写数据：表单选择 ---------------- */
+  async function openDataPicker() {
+    $('pickerTableBody').innerHTML = '<tr class="skeleton-row"><td colspan="5"></td></tr>';
+    $('dataPickerModal').classList.add('open');
+    try {
+      const data = await FormApi.list({ page: 1, pageSize: 100 });
+      const list = (data.list || []).filter((row) => row.status !== 0);
+      if (!list.length) {
+        $('pickerTableBody').innerHTML = '<tr><td colspan="5"><div class="empty"><span class="icon">📭</span>还没有已发布或已关闭的表单，先去发布一份吧</div></td></tr>';
+        return;
+      }
+      $('pickerTableBody').innerHTML = list.map((row) =>
+        '<tr>' +
+        '<td><div class="cell-title">' + escapeHtml(row.title) + '</div>' +
+        '<div class="cell-sub">' + escapeHtml(row.description || '无描述') + '</div></td>' +
+        '<td><span class="code-chip">' + escapeHtml(row.formNo) + '</span></td>' +
+        '<td>' + statusTag(row.status, row.statusDesc) + '</td>' +
+        '<td><b>' + (row.submitCount || 0) + '</b></td>' +
+        '<td><div class="ops"><button class="link-btn" data-pick="' + escapeHtml(row.formNo) + '">查看数据</button></div></td>' +
+        '</tr>'
+      ).join('');
+    } catch (e) {
+      $('pickerTableBody').innerHTML = '<tr><td colspan="5"><div class="empty">' + escapeHtml(e.message) + '</div></td></tr>';
+    }
+  }
+
+  /* ---------------- 填写数据：明细 ---------------- */
   async function openDataModal(formNo) {
     state.dataFormNo = formNo;
     state.dataPage = 1;
@@ -335,7 +396,7 @@
     $('dataTableBody').innerHTML = '<tr class="skeleton-row"><td></td></tr>';
     $('dataModal').classList.add('open');
     try {
-      const detail = await request(ADMIN_API + '/detail?formNo=' + encodeURIComponent(formNo));
+      const detail = await FormApi.detail(formNo);
       state.dataFields = detail.fields || [];
       $('dataModalSub').textContent = detail.title + ' · 已回收 ' + (detail.submitCount || 0) + ' 条数据';
       await loadSubmissions();
@@ -347,13 +408,12 @@
 
   async function loadSubmissions() {
     if (!state.dataFormNo) return;
-    const query = new URLSearchParams({
-      formNo: state.dataFormNo,
-      page: state.dataPage,
-      pageSize: state.dataPageSize
-    });
     try {
-      const data = await request(ADMIN_API + '/submissions?' + query.toString());
+      const data = await FormApi.submissions({
+        formNo: state.dataFormNo,
+        page: state.dataPage,
+        pageSize: state.dataPageSize
+      });
       state.dataTotal = data.total || 0;
       const fields = state.dataFields;
       $('dataTableHead').innerHTML = '<tr><th style="width:60px">#</th>' +
@@ -403,6 +463,14 @@
       state.page = 1;
       loadList();
     });
+    $('btnReset').addEventListener('click', () => {
+      $('keyword').value = '';
+      $('statusFilter').value = '';
+      state.keyword = '';
+      state.status = '';
+      state.page = 1;
+      loadList();
+    });
     $('keyword').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnSearch').click(); });
     $('statusFilter').addEventListener('change', () => $('btnSearch').click());
     $('btnAddField').addEventListener('click', addField);
@@ -432,6 +500,15 @@
       }
     });
 
+    // 数据选择器
+    $('pickerTableBody').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-pick]');
+      if (!btn) return;
+      const formNo = btn.getAttribute('data-pick');
+      $('dataPickerModal').classList.remove('open');
+      openDataModal(formNo);
+    });
+
     // 分页
     $('pagerPages').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-page]');
@@ -456,22 +533,25 @@
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        document.querySelectorAll('.modal.open').forEach((m) => m.classList.remove('open'));
+        document.querySelectorAll('.modal.open:not(#loginModal)').forEach((m) => m.classList.remove('open'));
       }
     });
 
     // 侧栏导航
     $('navDocs').addEventListener('click', () => $('docsModal').classList.add('open'));
-    $('navData').addEventListener('click', () => {
-      const first = state.rows.find((r) => r.status !== 0);
-      if (!first) { toast('暂无可查看数据的表单', 'error'); return; }
-      openDataModal(first.formNo);
-    });
+    $('navData').addEventListener('click', openDataPicker);
     $('navForms').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    bindLogin();
     bindEvents();
-    refreshAll();
+    const session = AuthApi.current();
+    applySession(session);
+    if (session) {
+      refreshAll();
+    } else {
+      $('loginUser').focus();
+    }
   });
 })();
