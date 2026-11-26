@@ -106,6 +106,26 @@ button, input, textarea, select { font-family: inherit; font-size: 15px; }
   width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
   background: #ecfdf3; color: var(--green); font-size: 30px;
 }
+/* ---------- 未携带 formNo：可填写表单选择列表 ---------- */
+.picker { display: flex; flex-direction: column; gap: 10px; }
+.picker-title { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 2px; }
+.picker-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; text-decoration: none; color: inherit;
+  transition: border-color .16s, background .16s, transform .16s;
+}
+.picker-item:hover { border-color: var(--brand); background: #f8f9ff; transform: translateY(-1px); }
+.picker-main { min-width: 0; flex: 1; }
+.picker-name { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.picker-desc {
+  margin-top: 4px; font-size: 12.5px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.picker-side { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.picker-no { font-size: 11.5px; color: var(--ink-2); background: #f2f4f7; padding: 3px 8px; border-radius: 6px; }
+.picker-arrow { color: var(--brand); font-size: 20px; line-height: 1; }
+
 .hidden { display: none !important; }
 
 .footer { text-align: center; padding: 18px; color: var(--ink-3); font-size: 11.5px; }

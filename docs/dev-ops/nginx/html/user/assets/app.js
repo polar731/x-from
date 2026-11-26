@@ -10,10 +10,11 @@
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get('formNo') || params.get('no') || params.get('code');
     if (fromQuery) return fromQuery.trim();
-    // 兼容 /f/{formNo} 形式
-    const parts = window.location.pathname.split('/').filter(Boolean);
-    const last = parts[parts.length - 1] || '';
-    if (last && last.indexOf('.') < 0) return last.trim();
+    /* 兼容 /f/{formNo} 这一种路径写法。
+       注意不能直接取 pathname 最后一段：访问 /user/ 时会拿到 "user"，
+       会被当成表单号去请求接口，从而盖住「未携带 formNo」的正常分支。 */
+    const match = window.location.pathname.match(/\/f\/([^/]+)\/?$/);
+    if (match) return decodeURIComponent(match[1]).trim();
     return '';
   }
 
@@ -192,10 +193,62 @@
     }
   }
 
+  /* 未携带 formNo（如直接打开 /user/）：列出已发布表单供选择，避免进入死路 */
+  async function renderPicker() {
+    $('heroTitle').textContent = '请选择要填写的表单';
+    $('heroDesc').textContent = '当前链接未携带表单编号，下面是正在收集的表单';
+    $('heroFormNo').textContent = '';
+    $('heroVisits').textContent = '';
+    document.title = '选择表单 · X-From';
+
+    let list = [];
+    try {
+      const data = await FormFillApi.listPublished();
+      list = (data && data.list) || [];
+    } catch (e) {
+      $('heroTitle').textContent = '暂时无法加载表单';
+      $('heroDesc').textContent = e.message;
+      showError('暂时无法加载表单', e.message);
+      return;
+    }
+
+    if (!list.length) {
+      $('heroTitle').textContent = '暂无可用表单';
+      $('heroDesc').textContent = '还没有已发布的表单';
+      showError('暂无可用表单', '还没有正在收集的表单，请向发起人索取分享链接');
+      return;
+    }
+
+    /* 只有一个表单时直接进入，省去一次点击 */
+    if (list.length === 1) {
+      window.location.replace('?formNo=' + encodeURIComponent(list[0].formNo));
+      return;
+    }
+
+    const card = $('formCard');
+    card.innerHTML = '<div class="picker">' +
+      '<div class="picker-title">可填写的表单（' + list.length + '）</div>' +
+      list.map(function (item) {
+        const formNo = String(item.formNo || '');
+        return '<a class="picker-item" href="?formNo=' + encodeURIComponent(formNo) + '">' +
+          '<div class="picker-main">' +
+          '<div class="picker-name">' + escapeHtml(item.title || '未命名表单') + '</div>' +
+          '<div class="picker-desc">' + escapeHtml(item.description || '无描述') + '</div>' +
+          '</div>' +
+          '<div class="picker-side">' +
+          '<span class="picker-no">' + escapeHtml(formNo) + '</span>' +
+          '<span class="picker-arrow">›</span>' +
+          '</div></a>';
+      }).join('') +
+      '</div>';
+    card.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   async function load() {
     state.formNo = resolveFormNo();
     if (!state.formNo) {
-      showError('链接不完整', '请在链接中携带 formNo 参数，例如 ?formNo=ABC12345');
+      await renderPicker();
       return;
     }
     try {

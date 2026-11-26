@@ -74,6 +74,16 @@
         method: 'POST',
         body: { formNo: formNo, data: data }
       });
+    },
+
+    /**
+     * 未携带 formNo 时的兜底：列出正在收集的已发布表单
+     * GET /api/admin/form/list?status=1（该接口不做鉴权，用户端可直接复用）
+     */
+    listPublished() {
+      return request('/api/admin/form/list', {
+        query: { status: 1, page: 1, pageSize: 50 }
+      });
     }
   };
 
