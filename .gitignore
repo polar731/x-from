@@ -1,0 +1,29 @@
+### Maven ###
+target/
+!.mvn/wrapper/maven-wrapper.jar
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+### IDE ###
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.classpath
+*.project
+*.settings/
+
+### Logs ###
+logs/
+*.log
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Local runtime ###
+*.pid
+/app.log
