@@ -27,3 +27,9 @@ Thumbs.db
 ### Local runtime ###
 *.pid
 /app.log
+
+### Arthas 完整包（体积大，只提交配置） ###
+docs/dev-ops/arthas/*.jar
+docs/dev-ops/arthas/*.zip
+docs/dev-ops/arthas/lib/
+docs/dev-ops/arthas/async-profiler/

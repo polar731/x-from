@@ -9,6 +9,10 @@ version: '3.8'
 #  1) 容器使用 host 网络，宿主机上 MySQL(13306)/Redis(16379) 由 docker-proxy 暴露，
 #     因此 prod 配置走 127.0.0.1（公网 IP 回环在本机被 NAT 拦截，不可用）。
 #  2) SPRING_PROFILES_ACTIVE 用环境变量下发，避免命令行折叠写法丢失参数。
+#  3) Arthas 采用 javaagent（premain）方式在应用启动时预加载：
+#     - 优点：不依赖 jdk.attach 模块，JRE 基础镜像即可；
+#     - 动态 attach（arthas-boot.jar）在 temurin 17-jre 上会抛
+#       NoClassDefFoundError: com/sun/tools/attach/AgentLoadException。
 
 services:
   x-from-app:
@@ -25,8 +29,15 @@ services:
       # logback 配置的日志文件为 ./data/log/log_info.log（相对工作目录 /app），
       # 因此必须映射 /app/data/log，映射 /app/log 是拿不到日志的。
       - ./data/log:/app/data/log
+      # Arthas 完整包（arthas-core/agent/lib/async-profiler）放宿主机 ./arthas，
+      # 容器重建不丢；配置文件为 ./arthas/arthas.properties。
+      - ./arthas:/opt/arthas
     command:
       - java
+      # Arthas javaagent 预加载：应用启动即挂载诊断能力，无需运行时 attach。
+      # 端口与账号在 ./arthas/arthas.properties 中配置（http 8563 / telnet 3658）。
+      - -javaagent:/opt/arthas/arthas-agent.jar
+      - -Darthas.home=/opt/arthas
       - -Xms256m
       - -Xmx512m
       - -Duser.timezone=Asia/Shanghai
